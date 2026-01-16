@@ -28,8 +28,7 @@ prior to confirmation. When private relay fails, public broadcast remains
 available only through an Explicit Public Broadcast Authorization Event, after
 which standard Bitcoin execution semantics apply and execution is quantum-unsafe.
 
-Seal-360 introduces no changes to Bitcoin consensus, Script semantics, custody
-models, or transaction validity rules.
+Seal-360 does not introduce additional changes to Bitcoin consensus, Script semantics, custody models, or transaction validation rules beyond those required by BIP-360.
 
 ---
 
@@ -42,6 +41,10 @@ models, or transaction validity rules.
 ## Problem Statement
 
 BIP-360 (Pay-to-Tapscript-Hash) hardens Bitcoin outputs against quantum attacks by removing Taproot key-path spending. However, it does not address a critical remaining risk: **the execution window between transaction signing and on-chain confirmation**.
+
+BIP-360 is a consensus change that hardens outputs at the Script level but does
+not alter transaction construction, broadcast, mempool behavior, or execution
+semantics.
 
 Under standard Bitcoin execution, signed transactions are broadcast to the public mempool, where signatures become globally observable for approximately one block interval. A quantum-capable adversary can exploit this window to extract signatures, recover private keys, and replace transactions before confirmation.
 
@@ -65,7 +68,7 @@ Sign → Encrypt → Direct to Miner → Confirm
 
 ```
 
-Seal-360 introduces no consensus changes, Script changes, or transaction validity changes.
+Seal-360 operates at the execution layer and does not introduce additional consensus, Script, or transaction validity changes beyond those required by BIP-360.
 
 ---
 
@@ -114,7 +117,7 @@ If private relay fails, execution state is surfaced and the user (or a pre-armed
 - Process transactions under standard Bitcoin consensus rules
 
 **Bitcoin nodes**
-- Require no changes
+- Require no changes beyond those required to support BIP-360
 
 Seal-360 provides incremental utility from a single participating miner and does not require ecosystem-wide adoption.
 
@@ -128,7 +131,7 @@ Seal-360 composes cleanly with BIP-360:
 |------|-----------|-----------|
 | Output | Quantum-safe outputs | P2TSH (BIP-360) |
 | Execution | Reduced exposure | Encrypted direct submission |
-| Combined | End-to-end hardening | No consensus changes |
+| Combined | End-to-end hardening | BIP-360 + execution-layer mitigation |
 
 Without Seal-360, BIP-360 outputs remain exposed during execution.
 
@@ -159,102 +162,103 @@ Seal-360 is a deployable, opt-in execution-layer mitigation that strengthens Bit
 
 ## Index
 
-0. [Scope](#0-scope)  
-1. [Terminology](#1-terminology)  
-2. [Design Goal](#2-design-goal)  
-3. [Execution Model Clarification (Normative)](#3-execution-model-clarification-normative)  
-4. [Why This Matters](#4-why-this-matters)  
-   4.1 [Execution-Window Exposure (Without Seal-360)](#41-execution-window-exposure-without-seal-360)  
-   4.2 [Eliminating the Execution Window (With Seal-360)](#42-eliminating-the-execution-window-with-seal-360)  
-   4.3 [Security Boundary Clarification](#43-security-boundary-clarification)  
-   4.4 [Liveness vs. Quantum Safety Tradeoff (Informative)](#44-liveness-vs-quantum-safety-tradeoff-informative)  
-   4.5 [Default Behavior Guidance (Informative)](#45-default-behavior-guidance-informative)  
-5. [Non-Goals](#5-non-goals)  
-6. [System Assumptions](#6-system-assumptions)  
-7. [Threat Model](#7-threat-model)  
-   7.1 [In-Scope Threats](#71-in-scope-threats)  
-   7.2 [Out-of-Scope Threats](#72-out-of-scope-threats)  
-   7.3 [Miner Visibility Boundaries](#73-miner-visibility-boundaries)  
-   7.4 [Economic Incentives, Abuse, and Correlation Risk](#74-economic-incentives-abuse-and-correlation-risk)  
-       7.4.1 [Miner Incentives](#741-miner-incentives)  
-       7.4.2 [Adversarial Miner Behavior](#742-adversarial-miner-behavior)  
-       7.4.3 [Miner Adoption and Deployment Bootstrap (Informative)](#743-miner-adoption-and-deployment-bootstrap-informative)  
-       7.4.4 [Wallet Fee Discipline (Recommended)](#744-wallet-fee-discipline-recommended)  
-       7.4.5 [Failure Handling and Retry Guidance (Informative)](#745-failure-handling-and-retry-guidance-informative)  
-   7.5 [Visibility Guarantees](#75-visibility-guarantees)  
-   7.6 [Residual Quantum Risk](#76-residual-quantum-risk)  
-   7.7 [Design Rationale and Common Objections (Non-Normative)](#77-design-rationale-and-common-objections-non-normative)  
-       7.7.1 [Rationale for User-Controlled Execution (Informative)](#771-rationale-for-user-controlled-execution-informative)  
-8. [Protocol Overview](#8-protocol-overview)  
-9. [Protocol Operation](#9-protocol-operation)  
-   9.1 [Miner Discovery](#91-miner-discovery)  
-       9.1.1 [Provider Metadata and Endpoint Validation](#911-provider-metadata-and-endpoint-validation)  
-       9.1.2 [Public Key Authenticity](#912-public-key-authenticity)  
-   9.2 [Transaction Construction](#92-transaction-construction)  
-   9.3 [Template Hashing](#93-template-hashing)  
-       9.3.1 [Canonical Hash Input (Normative)](#931-canonical-hash-input-normative)  
-       9.3.2 [Serialization Requirements (Normative)](#932-serialization-requirements-normative)  
-       9.3.3 [Hash Function (Normative)](#933-hash-function-normative)  
-       9.3.4 [Binding Properties (Normative)](#934-binding-properties-normative)  
-       9.3.5 [Miner Verification Rule (Normative)](#935-miner-verification-rule-normative)  
-   9.4 [Miner Offer Object (Informational)](#94-miner-offer-object-informational)  
-   9.5 [Transaction Encryption](#95-transaction-encryption)  
-       9.5.1 [Recommended Encryption Profile (Normative)](#951-recommended-encryption-profile-normative)  
-       9.5.2 [Transitional Encryption Profile](#952-transitional-encryption-profile)  
-       9.5.3 [Canonical AAD Encoding (Normative)](#953-canonical-aad-encoding-normative)  
-   9.6 [Encrypted Submission Transport (Normative)](#96-encrypted-submission-transport-normative)  
-       9.6.1 [HTTPS/TLS Transport (Recommended)](#961-httpstls-transport-recommended)  
-       9.6.2 [Encrypted Binary Transport (Optional)](#962-encrypted-binary-transport-optional)  
-       9.6.3 [Transport Selection and Failure Handling](#963-transport-selection-and-failure-handling)  
-       9.6.4 [Transport Security Scope](#964-transport-security-scope)  
-   9.7 [Miner Processing](#97-miner-processing)  
-   9.8 [Public Broadcast Authorization](#98-public-broadcast-authorization)  
-       9.8.1 [Correlation Risk](#981-correlation-risk)  
-       9.8.2 [Correlation Risk Mitigations (Recommended)](#982-correlation-risk-mitigations-recommended)  
-   9.9 [Post-Execution Output Anchoring](#99-post-execution-output-anchoring)  
-   9.10 [Replace-By-Fee (RBF)](#910-replace-by-fee-rbf)  
-       9.10.1 [Replace-By-Fee Semantics Under Private Relay (Normative)](#9101-rbf-semantics-under-private-relay-normative)  
-   9.11 [Normative Scope](#911-normative-scope)  
-10. [Security Properties](#10-security-properties)  
-    10.1 [Guaranteed](#101-guaranteed)  
-    10.2 [Not Guaranteed](#102-not-guaranteed)  
-    10.3 [Security Properties Summary](#103-security-properties-summary)  
-    10.4 [Security Comparison (Informative)](#104-security-comparison-informative)  
-11. [Failure Modes](#11-failure-modes)  
-    11.1 [User Sovereignty Over Execution (Normative)](#111-user-sovereignty-over-execution-normative)  
-    11.2 [Failure Transparency](#112-failure-transparency)  
-    11.3 [Safety Property](#113-safety-property)  
-    11.4 [Explicit Public Broadcast Authorization Event (Normative)](#114-explicit-public-broadcast-authorization-event-normative)  
-    11.5 [Authorization Audit Record (Normative)](#115-authorization-audit-record-normative)  
-12. [Deployment Requirements](#12-deployment-requirements)  
-    12.1 [Wallet Requirements](#121-wallet-requirements)  
-    12.2 [Miner Requirements](#122-miner-requirements)  
-    12.3 [Bitcoin Node Requirements](#123-bitcoin-node-requirements)  
-    12.4 [Optional Infrastructure](#124-optional-infrastructure)  
-    12.5 [Backward Compatibility](#125-backward-compatibility)  
-13. [Summary](#13-summary)  
-14. [Conformance Statement](#14-conformance-statement)  
-    14.1 [Wallet Conformance](#141-wallet-conformance)  
-    14.2 [Miner Conformance](#142-miner-conformance)  
-    14.3 [System Conformance](#143-system-conformance)  
-15. [Normative References](#15-normative-references)  
-16. [Informative References](#16-informative-references)  
+0. [Scope](#0-scope)
+1. [Terminology](#1-terminology)
+2. [Design Goal](#2-design-goal)
+3. [Execution Model Clarification (Normative)](#3-execution-model-clarification-normative)
 
-**Annexes**
+4. [Why This Matters](#4-why-this-matters)
+   4.1 [Execution-Window Exposure (Without Seal-360)](#41-execution-window-exposure-without-seal-360)
+   4.2 [Eliminating the Execution Window (With Seal-360)](#42-eliminating-the-execution-window-with-seal-360)
+   4.3 [Security Boundary Clarification](#43-security-boundary-clarification)
+   4.4 [Liveness vs. Quantum Safety Tradeoff (Informative)](#44-liveness-vs-quantum-safety-tradeoff-informative)
+   4.5 [Default Behavior Guidance (Informative)](#45-default-behavior-guidance-informative)
 
-A. [Optional Hardening Extensions](#annex-a-optional-hardening-extensions)  
-B. [Comparative Analysis](#annex-b-comparative-analysis)  
-C. [Test Vectors](#annex-c-test-vectors-reference)  
-D. [Deployment Scenarios](#annex-d-deployment-scenarios)  
-E. [Frequently Asked Questions](#annex-e-frequently-asked-questions)  
-F. [Wallet UX Guidelines](#annex-f-wallet-ux-guidelines-and-miner-selection-interface-informative)  
-G. [Terminology](#annex-g-terminology)  
-H. [Miner Discovery Protocol](#annex-h-miner-discovery-protocol-normative)  
-I. [Optional Stack Integration](#annex-i-optional-stack-integration-informative)  
-J. [Protocol Flow Diagrams](#annex-j-protocol-flow-diagrams)  
-K. [Optional PQHD Keymail Transport](#annex-k-optional-pqhd-keymail-transport-informative)  
-L. [Minimum Viable Implementation](#annex-l-minimum-viable-implementation-informative)  
-M. [Reference Code and Visual Summary](#annex-m-reference-code-visual-summary-and-naming-informative)  
+5. [Non-Goals](#5-non-goals)
+
+6. [System Assumptions](#6-system-assumptions)
+   6.1 [Wallet](#wallet)
+   6.2 [Miner](#miner)
+   6.3 [Timestamp Format (Normative)](#timestamp-format-normative)
+
+7. [Threat Model](#7-threat-model)
+   7.1 [In-Scope Threats](#71-in-scope-threats)
+   7.2 [Out-of-Scope Threats](#72-out-of-scope-threats)
+   7.3 [Miner Visibility Boundaries](#73-miner-visibility-boundaries)
+   7.4 [Economic Incentives, Abuse, and Correlation Risk](#74-economic-incentives-abuse-and-correlation-risk)
+       7.4.1 [Miner Incentives](#741-miner-incentives)
+       7.4.2 [Adversarial Miner Behavior](#742-adversarial-miner-behavior)
+       7.4.3 [Miner Adoption and Deployment Bootstrap (Informative)](#743-miner-adoption-and-deployment-bootstrap-informative)
+       7.4.4 [Wallet Fee Discipline (Recommended)](#744-wallet-fee-discipline-recommended)
+       7.4.5 [Failure Handling and Retry Guidance (Informative)](#745-failure-handling-and-retry-guidance-informative)
+   7.5 [Visibility Guarantees](#75-visibility-guarantees)
+   7.6 [Residual Quantum Risk](#76-residual-quantum-risk)
+   7.7 [Design Rationale and Common Objections (Non-Normative)](#77-design-rationale-and-common-objections-non-normative)
+       7.7.1 [Rationale for User-Controlled Execution (Informative)](#771-rationale-for-user-controlled-execution-informative)
+
+8. [Protocol Overview](#8-protocol-overview)
+
+9. [Protocol Operation](#9-protocol-operation)
+   9.1 [Miner Discovery](#91-miner-discovery)
+       9.1.1 [Provider Metadata and Endpoint Validation](#911-provider-metadata-and-endpoint-validation)
+       9.1.2 [Public Key Authenticity](#912-public-key-authenticity)
+   9.2 [Transaction Construction](#92-transaction-construction)
+   9.3 [Template Hashing (Normative)](#93-template-hashing-normative)
+       9.3.1 [Canonical Hash Input (Normative)](#931-canonical-hash-input-normative)
+       9.3.2 [Serialization Requirements (Normative)](#932-serialization-requirements-normative)
+       9.3.3 [Hash Function (Normative)](#933-hash-function-normative)
+       9.3.4 [Binding Properties (Normative)](#934-binding-properties-normative)
+       9.3.5 [Miner Verification Rule (Normative)](#935-miner-verification-rule-normative)
+       9.3.6 [Spend Form Constraint (Normative)](#936-spend-form-constraint-normative)
+   9.4 [Miner Offer Object (Informational)](#94-miner-offer-object-informational)
+   9.5 [Transaction Encryption](#95-transaction-encryption)
+       9.5.1 [Recommended Encryption Profile (Normative)](#951-recommended-encryption-profile-normative)
+       9.5.2 [Transitional Encryption Profile](#952-transitional-encryption-profile)
+       9.5.3 [Canonical AAD Encoding (Normative)](#953-canonical-aad-encoding-normative)
+   9.6 [Encrypt-Before-Transport Semantics (Normative)](#96-encrypt-before-transport-semantics-normative)
+       9.6.1 [HTTPS/TLS as Authenticated Carrier (Recommended)](#961-httpstls-as-authenticated-carrier-recommended)
+       9.6.2 [Optional Binary Framing (Framing Only)](#962-optional-binary-framing-framing-only)
+       9.6.3 [Carrier Selection and Failure Handling](#963-carrier-selection-and-failure-handling)
+       9.6.4 [Carrier Security Scope](#964-carrier-security-scope)
+   9.7 [Miner Processing (Normative)](#97-miner-processing-normative)
+   9.8 [Public Broadcast Authorization](#98-public-broadcast-authorization)
+       9.8.1 [Correlation Risk](#981-correlation-risk)
+       9.8.2 [Correlation Downgrade Guard](#982-correlation-downgrade-guard)
+   9.9 [Post-Execution Output Anchoring](#99-post-execution-output-anchoring)
+   9.10 [Replace-By-Fee (RBF)](#910-replace-by-fee-rbf)
+       9.10.1 [RBF Semantics Under Private Relay (Normative)](#9101-rbf-semantics-under-private-relay-normative)
+   9.11 [Normative Scope](#911-normative-scope)
+
+10. [Security Properties](#10-security-properties)
+11. [Failure Modes](#11-failure-modes)
+
+12. [Deployment Requirements](#12-deployment-requirements)
+    12.1 [Wallet Requirements](#121-wallet-requirements)
+    12.2 [Miner Requirements](#122-miner-requirements)
+    12.3 [Bitcoin Node Requirements](#123-bitcoin-node-requirements)
+    12.4 [Optional Infrastructure](#124-optional-infrastructure)
+    12.5 [Backward Compatibility](#125-backward-compatibility)
+
+13. [Summary](#13-summary)
+14. [Conformance Statement](#14-conformance-statement)
+15. [Normative References](#15-normative-references)
+16. [Informative References](#16-informative-references)
+
+### Annexes
+
+A. [Optional Hardening Extensions](#annex-a-optional-hardening-extensions)
+B. [Comparative Analysis](#annex-b-comparative-analysis)
+C. [Test Vectors and Conformance Tests](#annex-c-test-vectors-and-conformance-tests-reference)
+D. [Deployment Scenarios](#annex-d-deployment-scenarios)
+E. [Frequently Asked Questions](#annex-e-frequently-asked-questions)
+F. [Wallet UX Guidelines and Miner Selection Interface (Informative)](#annex-f-wallet-ux-guidelines-and-miner-selection-interface-informative)
+G. [Terminology](#annex-g-terminology)
+H. [Miner Discovery Protocol (Normative)](#annex-h-miner-discovery-protocol-normative)
+I. [Optional Stack Integration (Informative)](#annex-i-optional-stack-integration-informative)
+J. [Protocol Flow Diagrams](#annex-j-protocol-flow-diagrams)
+K. [Optional PQHD Keymail Transport (Informative)](#annex-k-optional-pqhd-keymail-transport-informative)
+L. [Minimum Viable Implementation (Informative)](#annex-l-minimum-viable-implementation-informative)
+M. [Reference Code, Visual Summary, and Naming (Informative)](#annex-m-reference-code-visual-summary-and-naming-informative)
 N. [Relationship to Bitcoin Pre-Contracts (Informative)](#annex-n-relationship-to-bitcoin-pre-contracts-informative)
 
 ---
@@ -268,7 +272,7 @@ Seal-360:
 * addresses only the broadcast-to-confirmation window,
 * introduces no custody semantics,
 * introduces no authorization rules,
-* introduces no consensus or Script changes.
+* introduces no additional consensus or Script changes beyond those required by BIP-360.
 
 ---
 
@@ -282,6 +286,13 @@ The execution-layer protocol defined in this document, specifying cryptographic 
 **Private relay**  
 The Seal-360 execution mode in which a signed transaction is delivered privately to a miner prior to confirmation. Private relay includes miner discovery, transaction construction and signing, encrypted submission, miner-side verification, and explicit execution outcome handling. Private relay explicitly excludes automatic public broadcast.
 
+**Encrypt-Before-Transport (EBT)**  
+A security invariant requiring that the signed transaction payload is
+cryptographically encrypted prior to entering any transport, framing, routing,
+or delivery mechanism. EBT defines payload confidentiality only and does not
+define transport authentication, routing, retry, ordering, or delivery
+semantics.
+
 **Encrypted Direct-to-Miner Submission** (or **Encrypted Submission**)  
 The protocol action of encrypting a fully signed Bitcoin transaction under a miner’s ML-KEM-768 public key and transmitting it directly to that miner for potential block inclusion. Encrypted Submission is a mechanism within private relay and does not imply inclusion guarantees.
 
@@ -290,6 +301,10 @@ Submission of a fully signed Bitcoin transaction to the public peer-to-peer netw
 
 **Execution window**  
 The interval between transaction signing and blockchain confirmation during which transaction signatures may become observable. In standard Bitcoin execution, this window includes public mempool exposure. Seal-360 eliminates public mempool exposure during this window while private relay succeeds.
+
+This section defines terminology required to interpret the core Seal-360
+protocol. Extended, cross-stack, or conceptual definitions are provided in
+Annex G and are informative unless explicitly stated otherwise.
 
 ---
 
@@ -318,6 +333,9 @@ Public broadcast remains always available through explicit user authorization bu
 This preserves Bitcoin’s censorship resistance while eliminating automatic quantum exposure during the execution window.
 
 Seal-360 modifies **how** a transaction may be delivered prior to confirmation, not **whether** it may enter Bitcoin’s normal consensus process.
+
+Seal-360 defines no new validation rules and introduces no new script forms; it specifies only an optional delivery mechanism for already-valid BIP-360 transactions and therefore does not constitute a Bitcoin consensus change.
+
 
 ---
 
@@ -410,8 +428,7 @@ When private relay succeeds:
 * The quantum-vulnerable execution window is reduced to zero.
 * The transaction becomes observable to the network only after confirmation.
 
-Bitcoin consensus rules, transaction validity, fee logic, and signature schemes
-remain unchanged.
+Bitcoin consensus rules, transaction validity, fee logic, and signature schemes remain unchanged beyond those defined by BIP-360.
 
 **Important distinction:**
 
@@ -420,7 +437,7 @@ Seal-360 does not alter how transactions are signed or validated. It changes
 
 This shifts execution-time visibility from the entire network to a single,
 temporary miner endpoint, providing a clean execution-layer mitigation that
-complements BIP-360’s output hardening without requiring any consensus changes.
+complements BIP-360’s output hardening without introducing additional consensus changes.
 
 ---
 
@@ -530,13 +547,25 @@ Seal-360 is **strictly an execution-layer mitigation**.
 * Standard block construction
 * Voluntary support for private relay
 * Publication of a public encryption key
-* No change to consensus behavior
+* No changes to block or transaction validation rules beyond those defined by BIP-360
+
+### Timestamp Format (Normative)
+
+All timestamps used in Seal-360 MUST be expressed as RFC 3339 timestamps in UTC.
+
+- Format: `YYYY-MM-DDTHH:MM:SSZ`
+- Seconds precision is REQUIRED.
+- Fractional seconds MAY be included.
+- Local timezones, offsets, and ambiguous ISO 8601 variants are NOT permitted.
+
+Any timestamp that does not conform to RFC 3339 UTC format MUST be rejected.
+
 
 ---
 
 ## 7. Threat Model
 
-Seal-360 is an execution-layer mitigation. It does not modify consensus, Script, or signature semantics.
+Seal-360 is an execution-layer mitigation. It does not modify consensus, Script, or signature semantics beyond those defined by BIP-360.
 
 Its security objective is limited to eliminating **public mempool visibility prior to confirmation**.
 
@@ -612,7 +641,7 @@ Miners MAY support private relay because it is economically compatible with exis
   Direct submission reduces gossip overhead and malformed transaction handling relative to public mempool ingestion.
 
 * **Service differentiation**
-  Pools MAY offer private relay as a premium service for latency-sensitive or high-value flows without requiring consensus changes or coordination with other miners.
+  Pools MAY offer private relay as a premium service for latency-sensitive or high-value flows without requiring additional consensus changes or coordination with other miners.
 
 Seal-360 does not assume altruism. Participation is optional and market-driven.
 
@@ -672,7 +701,7 @@ For these operators, Seal-360 requires only:
 * verifying `template_hash`,
 * feeding accepted transactions into existing internal mempool or block-template pipelines.
 
-No consensus changes, inter-miner coordination, or policy commitments are required. Adoption is market-driven and requires no coordination beyond individual miner decisions.
+No additional consensus changes, inter-miner coordination, or policy commitments are required beyond those already introduced by BIP-360. Adoption is market-driven and requires no coordination beyond individual miner decisions.
 
 #### Incremental Utility Model
 
@@ -847,7 +876,7 @@ Because this is an execution-layer problem that cannot be solved at the consensu
 
 * On-chain mechanisms cannot prevent a signed transaction from being broadcast.
 * On-chain mechanisms cannot keep signatures confidential during the execution window.
-* Consensus or Script changes are not required to change delivery semantics between wallets and miners.
+* Additional consensus or Script changes beyond those introduced by BIP-360 are not required to change delivery semantics between wallets and miners.
 
 Seal-360 operates before public broadcast, where authority timing and signature visibility can be controlled without altering Bitcoin consensus.
 
@@ -859,9 +888,9 @@ Security mechanisms are evaluated by where complexity is placed.
 
 Seal-360 contains complexity in an optional execution mode at the wallet–miner interface:
 
-* No consensus changes.
-* No Script changes.
-* No transaction validity changes.
+* No additional consensus changes beyond BIP-360.
+* No additional Script changes beyond BIP-360.
+* No transaction validity changes beyond those defined by BIP-360.
 * Explicit execution-state handling with user-authorized broadcast.
 
 A minimal implementation requires only discovery, encryption, submission, timeout handling, and state surfacing. More advanced routing or privacy hardening is optional.
@@ -1033,81 +1062,146 @@ If authenticity cannot be established, submission MUST be rejected.
 
 ### 9.2 Transaction Construction
 
-**GOAL:** Construct a fully signed, broadcast-valid Bitcoin transaction.
+This section defines the construction of a broadcast-valid Bitcoin transaction
+prior to encrypted private relay.
 
-**INPUTS:**
-
-* Selected miner offer
-* Wallet UTXOs
-* Recipient addresses
-
-**OUTPUTS:**
-
-* Fully signed Bitcoin transaction
-
-**WALLET ACTION:**
-
-1. Select inputs according to wallet policy
-2. Define outputs (including change)
-3. Calculate fees based on miner offer
-4. Sign using standard Bitcoin rules (secp256k1)
-
-**CRITICAL:**
-The wallet MUST NOT broadcast the transaction to the public mempool at this stage.
+Transaction construction occurs entirely within the wallet and precedes any
+Encrypted Direct-to-Miner Submission.
 
 ---
 
-### 9.3 Template Hashing
+#### Goal
 
-**GOAL:** Bind the encrypted submission to an exact, immutable transaction instance.
-
-**INPUTS:**
-
-* Fully signed transaction bytes
-
-**OUTPUTS:**
-
-* `template_hash` (32 bytes)
+Construct a fully signed, broadcast-valid Bitcoin transaction without exposing
+the transaction to the public mempool.
 
 ---
 
-#### 9.3.1 Canonical Hash Input (Normative)
+#### Inputs
 
-`template_hash` MUST be computed over the exact transaction byte sequence that would be broadcast if public broadcast is later authorized.
+- Selected miner offer (Section 9.1)
+- Wallet-controlled UTXOs
+- Recipient output specifications
+- Wallet fee and change policy
+
+---
+
+#### Outputs
+
+- Fully signed Bitcoin transaction suitable for public broadcast
+
+---
+
+#### Wallet Requirements
+
+The wallet MUST:
+
+1. Select inputs according to wallet policy.
+2. Define outputs, including destination and change outputs.
+3. Calculate transaction fees based on the selected miner offer.
+4. Construct the transaction using standard Bitcoin serialization rules.
+5. Sign the transaction using standard Bitcoin signing rules.
+
+The resulting transaction MUST be valid under Bitcoin consensus rules and MUST
+be broadcast-valid if public broadcast is later authorized.
+
+---
+
+#### Execution Ordering Constraint
+
+After signing and before completion of Encrypted Submission, the wallet
+MUST NOT broadcast the transaction to the public peer-to-peer network or
+public mempool.
+
+This prohibition applies regardless of:
+
+- timeout configuration,
+- miner availability,
+- transport failure,
+- application restart or recovery,
+- policy engine state.
+
+Any implementation that broadcasts a transaction at this stage is
+non-conformant.
+
+---
+
+#### Mutation Prohibition
+
+After signing:
+
+- the transaction bytes MUST be treated as immutable,
+- no inputs, outputs, scripts, witnesses, fees, or ordering MAY be modified,
+- any change requires explicit reconstruction and re-signing.
+
+Any modification after signing invalidates the transaction instance and MUST
+result in a new transaction with a new `template_hash`.
+
+---
+
+#### Scope Clarification
+
+This section defines transaction construction only.
+
+It does not define:
+
+- authorization semantics,
+- execution policy,
+- miner inclusion behavior,
+- public broadcast conditions.
+
+Those behaviors are defined elsewhere in this specification.
+
+---
+
+## 9.3 Template Hashing (Normative)
+
+Template hashing binds an Encrypted Submission to a single, immutable Bitcoin
+transaction instance.
+
+The template hash prevents undetected modification of transaction bytes after
+signing and ensures that miners gain visibility but not control.
+
+---
+
+### 9.3.1 Canonical Hash Input (Normative)
+
+`template_hash` MUST be computed over the exact transaction byte sequence that
+would be broadcast if public broadcast is later authorized.
 
 The hash input MUST:
 
-* use standard Bitcoin wire serialization, and
-* include witness data if present (SegWit v0 or Taproot).
+- use standard Bitcoin wire serialization, and
+- include all witness data exactly as signed.
 
-No metadata, wrappers, JSON, CBOR, or transport framing bytes MAY be included.
-
-
----
-
-#### 9.3.2 Serialization Requirements (Normative)
-
-The wallet MUST hash the transaction bytes exactly as signed:
-
-* `version` (4 bytes, little-endian)
-* all inputs (outpoint, scriptSig, sequence)
-* all outputs (value, scriptPubKey)
-* witness stacks (if present, exactly as signed)
-* `locktime` (4 bytes, little-endian)
-
-**Forbidden transformations:**
-
-* witness stripping or reordering
-* signature normalization or rewriting
-* input/output reordering
-* fee or script mutation
-* any byte-level rewrite
-
-Any modification produces a different `template_hash`.
+No metadata, wrappers, JSON, CBOR, transport framing, or auxiliary fields MAY be
+included.
 
 ---
 
-#### 9.3.3 Hash Function (Normative)
+### 9.3.2 Serialization Requirements (Normative)
+
+The wallet MUST hash the transaction bytes exactly as signed, including:
+
+- `version` (4 bytes, little-endian),
+- all inputs (outpoint, scriptSig, sequence),
+- all outputs (value, scriptPubKey),
+- witness stacks (if present, exactly as signed),
+- `locktime` (4 bytes, little-endian).
+
+The following transformations are FORBIDDEN:
+
+- witness stripping or reordering,
+- signature normalization or rewriting,
+- input or output reordering,
+- fee or script mutation,
+- any byte-level rewrite.
+
+Any post-signing modification MUST produce a different `template_hash`.
+
+---
+
+### 9.3.3 Hash Function (Normative)
 
 ```
 
@@ -1115,32 +1209,50 @@ template_hash = SHA256(raw_tx_bytes)
 
 ```
 
-Output length MUST be exactly 256 bits (32 bytes).
+The output MUST be exactly 256 bits (32 bytes).
 
 ---
 
-#### 9.3.4 Binding Properties (Normative)
+### 9.3.4 Binding Properties (Normative)
 
-The template hash binds:
+The template hash binds, at minimum:
 
-* transaction version
-* all inputs and outputs
-* all signatures and witness data
-* locktime
+- transaction version,
+- all inputs and outputs,
+- all signatures and witness data,
+- locktime.
 
-Any post-signing modification MUST invalidate the hash.
+Any modification to any bound field MUST invalidate the hash.
 
 ---
 
-#### 9.3.5 Miner Verification Rule (Normative)
+### 9.3.5 Miner Verification Rule (Normative)
 
 After decryption, the miner MUST:
 
-1. Recompute `template_hash` over the decrypted transaction bytes
-2. Compare it to the supplied `template_hash`
-3. Reject the submission if values differ
+1. Recompute `template_hash` over the decrypted transaction bytes.
+2. Compare it to the supplied `template_hash`.
+3. Reject the submission if the values differ.
 
 A mismatch MUST be treated as a hard integrity failure.
+
+---
+
+### 9.3.6 Spend Form Constraint (Normative)
+
+Seal-360 MUST be used only with transaction forms that are not subject to
+third-party malleability.
+
+Conformant wallets MUST restrict Seal-360 execution to:
+
+- Taproot (SegWit v1) spends, or
+- any future Bitcoin spend form with equivalent non-malleability guarantees.
+
+Seal-360 MUST NOT be used with legacy or SegWit v0 inputs whose witness data may
+be altered by third parties without invalidating the spend.
+
+This constraint is REQUIRED to ensure that `template_hash` uniquely commits to a
+single valid transaction instance.
 
 ---
 
@@ -1212,7 +1324,7 @@ following fields and no others:
 * `submission_id` — 16-byte per-attempt identifier, hex-encoded
 * `miner_id` — UTF-8 string identifying the selected miner or pool
 * `key_id` — UTF-8 string identifying the miner encryption key
-* `expires_at` — ISO 8601 timestamp defining the validity window of the offer
+* `expires_at` — RFC 3339 UTC timestamp defining the validity window of the offer
 
 AAD MUST be encoded using RFC 8785 JSON Canonicalization Scheme (JCS).
 
@@ -1234,53 +1346,77 @@ submission.
 
 ---
 
-### 9.6 Encrypted Submission Transport (Normative)
+### 9.6 Encrypt-Before-Transport Semantics (Normative)
 
-Seal-360 is transport-agnostic and does not mandate a single delivery mechanism for Encrypted Submission.
+Seal-360 mandates **Encrypt-Before-Transport (EBT)** semantics.
 
-Any transport used for Encrypted Submission MUST satisfy all of the following properties:
+The signed transaction payload MUST be cryptographically encrypted **before**
+entering any transport, framing, routing, or delivery mechanism.
 
-* authenticated endpoint identity,
-* integrity protection for ciphertext delivery,
-* resistance to replay and duplicate submission,
-* no interaction with Bitcoin P2P relay or mempool mechanisms.
+All transports are treated as metadata-exposing and untrusted for confidentiality.
+
+Transport mechanisms (including HTTPS, TLS, KeyMail, binary framing, or any
+other carrier) MUST carry only ciphertext and MUST NOT be relied upon for
+payload secrecy.
+
+EBT defines payload confidentiality only.  
+EBT does not define framing, routing, retry, ordering, or delivery guarantees.
 
 Transport choice MUST NOT affect:
+- transaction construction or signing,
+- `template_hash` computation,
+- AEAD associated data construction,
+- authorization semantics,
+- fallback or failure behavior.
 
-* transaction construction or signing,
-* `template_hash` computation,
-* AEAD associated data construction,
-* authorization semantics,
-* fallback or failure behavior.
+Seal-360 defines payload structure, cryptographic binding, and execution
+semantics independently of transport.
 
-Seal-360 defines payload structure, cryptographic binding, and execution semantics independently of transport.
+#### 9.6.1 HTTPS/TLS as Authenticated Carrier (RECOMMENDED)
 
-#### 9.6.1 HTTPS/TLS Transport (RECOMMENDED)
-
-HTTPS over TLS 1.3 or later is RECOMMENDED as the baseline transport for Encrypted Submission.
+HTTPS over TLS 1.3 or later is RECOMMENDED as an authenticated transport
+carrier for Encrypted Submission.
 
 When HTTPS/TLS is used:
 
-* the miner submission endpoint MUST be authenticated using standard TLS certificate validation,
-* TLS is used solely to authenticate the endpoint and protect against trivial network interference,
-* post-quantum confidentiality is provided exclusively by the Encrypted Submission payload.
+- the miner submission endpoint MUST be authenticated using standard TLS
+  certificate validation,
+- TLS is used solely to authenticate the endpoint and protect against trivial
+  network interference,
+- post-quantum confidentiality is provided exclusively by Encrypt-Before-Transport
+  payload encryption.
 
-Seal-360 does not rely on TLS for post-quantum security guarantees. Compromise or failure of TLS authentication MAY enable endpoint impersonation or denial-of-service, but MUST NOT cause automatic public broadcast or loss of signing authority.
+Seal-360 MUST NOT rely on TLS for payload confidentiality.
 
-#### 9.6.2 Encrypted Binary Transport (EBT) over TLS (OPTIONAL)
+Compromise or failure of TLS authentication MAY enable endpoint impersonation
+or denial-of-service, but MUST NOT:
 
-Implementations MAY use an Encrypted Binary Transport (EBT) framing over TLS instead of JSON- or REST-based submission.
+- expose signed transaction bytes,
+- alter payload integrity without detection,
+- trigger automatic public broadcast,
+- grant execution or signing authority.
 
-When EBT is used:
+#### 9.6.2 Optional Binary Framing (Framing Only)
 
-* the encrypted payload defined in Section 9.5 MUST remain unchanged,
-* AEAD associated data construction per Section 9.5.3 MUST remain unchanged,
-* framing MUST be length-delimited and unambiguous,
-* no additional plaintext transaction metadata MAY be introduced.
+Implementations MAY use binary framing instead of JSON- or REST-based submission
+to carry Encrypted Submission payloads.
 
-EBT affects framing only and MUST NOT introduce new execution behavior or authorization semantics.
+When binary framing is used:
 
-#### 9.6.3 Transport Selection and Failure Handling
+- the encrypted payload defined in Section 9.5 MUST remain unchanged,
+- AEAD associated data construction per Section 9.5.3 MUST remain unchanged,
+- framing MUST be length-delimited and unambiguous,
+- no additional plaintext transaction metadata MAY be introduced.
+
+Binary framing affects framing only.
+
+Binary framing MUST NOT:
+- alter Encrypt-Before-Transport semantics,
+- introduce new execution behavior,
+- introduce new authorization semantics,
+- weaken payload confidentiality or integrity guarantees.
+
+#### 9.6.3 Carrier Selection and Failure Handling
 
 Wallets MAY support multiple transport mechanisms concurrently.
 
@@ -1297,32 +1433,34 @@ Transport failure MUST NOT:
 * trigger public broadcast automatically,
 * bypass Explicit Public Broadcast Authorization Event requirements.
 
-#### 9.6.4 Transport Security Scope
+#### 9.6.4 Carrier Security Scope
 
-Seal-360 provides post-quantum confidentiality for transaction payloads during
-Encrypted Submission through the use of ML-KEM-768 and AEAD encryption.
+Seal-360 provides post-quantum confidentiality through
+Encrypt-Before-Transport (EBT) payload encryption.
 
-Seal-360 does not claim post-quantum security for:
+Seal-360 does **not** claim post-quantum security for:
 
-* transport authentication mechanisms,
-* endpoint discovery infrastructure,
-* classical PKI systems (for example TLS certificate authorities),
-* network-layer metadata such as IP addresses or routing information.
+- carrier authentication mechanisms,
+- endpoint discovery infrastructure,
+- classical PKI systems (for example TLS certificate authorities),
+- network-layer metadata such as IP addresses, routing information,
+  timing, or packet size.
 
-Authenticated transports such as HTTPS/TLS are used to identify submission
-endpoints and to protect against trivial network interference. They are not
-relied upon for post-quantum confidentiality guarantees.
+Authenticated carriers such as HTTPS/TLS are used solely to identify
+submission endpoints and to protect against trivial network
+interference. They are **not** relied upon for payload confidentiality.
 
-Compromise or failure of transport authentication MAY enable endpoint
+Compromise or failure of carrier authentication MAY enable endpoint
 impersonation, traffic disruption, or denial-of-service. Such failures:
 
-* MUST NOT grant execution authority or signing capability,
-* MUST NOT permit modification of signed transaction bytes without detection,
-* MUST NOT trigger automatic public broadcast.
+- MUST NOT grant execution authority or signing capability,
+- MUST NOT permit modification of signed transaction bytes without
+  detection,
+- MUST NOT trigger automatic public broadcast.
 
-Private relay failure resulting from transport issues is handled as an execution
-failure and requires explicit user or policy decision before any public
-broadcast.
+Private relay failure resulting from carrier issues is handled as an
+execution failure and requires explicit user or policy decision before
+any public broadcast.
 
 ---
 
@@ -1360,78 +1498,83 @@ protocol violation.
 
 ### 9.8 Public Broadcast Authorization
 
-**GOAL:** Preserve user sovereignty over execution while maintaining access to Bitcoin’s public consensus process.
+Public broadcast is an explicit execution choice and MUST NOT be triggered
+automatically by the Seal-360 protocol.
 
-Public broadcast is an explicit execution choice and is never triggered automatically by the Seal-360 protocol.
-
-A transaction MAY be broadcast to the public mempool only after an **Explicit Public Broadcast Authorization Event** as defined in Section 11.4.
+A transaction MAY be submitted to the public Bitcoin peer-to-peer network only
+after an Explicit Public Broadcast Authorization Event as defined in
+Section 11.4.
 
 Public broadcast MAY be requested when one or more of the following occur:
 
-* the selected miner refuses the Encrypted Submission,
-* inclusion does not occur within the wallet-defined timeout,
-* the submission endpoint becomes unreachable, or
-* an integrity or protocol failure is detected during private relay.
+- the selected miner refuses the Encrypted Submission,
+- inclusion does not occur within the wallet-defined timeout,
+- the submission endpoint becomes unreachable,
+- an integrity, authentication, or protocol failure is detected during private
+  relay.
 
-On any such condition, the wallet MUST surface the execution state to the user or policy engine and MUST offer the outcomes defined in Section 11.1.
+On any such condition, the wallet MUST surface execution state to the user or
+policy engine and MUST offer the execution outcomes defined in Section 11.1.
 
-**Prohibited behavior (Normative):**
-* A timeout, refusal, transport failure, discovery failure, integrity failure, or restart recovery MUST NOT, by itself, cause public broadcast.
-* Any policy engine behavior that results in public broadcast MUST satisfy Section 11.4 and MUST be auditable per Section 11.5.
+#### Prohibited Behavior
 
-When public broadcast is authorized, the wallet MUST broadcast the **exact signed transaction bytes** that were hashed to produce `template_hash` (Section 9.3).
+The following conditions MUST NOT, by themselves, cause public broadcast:
 
-When public broadcast is authorized, execution immediately re-enters the standard Bitcoin threat model and MUST be disclosed as quantum-unsafe prior to submission.
+- timeout expiration,
+- miner refusal,
+- transport failure,
+- discovery failure,
+- integrity failure,
+- application restart or recovery.
+
+Any policy or automation that results in public broadcast MUST satisfy the
+requirements of Section 11.4 and MUST be auditable per Section 11.5.
+
+When public broadcast is authorized, the wallet MUST broadcast the exact signed
+transaction bytes that were hashed to produce `template_hash`, unless a new
+transaction is explicitly constructed as part of downgrade handling.
 
 ---
 
-#### 9.8.1 Correlation Risk
+### 9.8.1 Correlation Risk
 
-Public broadcast introduces unavoidable correlation risk. Seal-360 does not claim anonymity.
+Transitioning from private relay to public broadcast introduces correlation
+risk.
 
-Wallets SHOULD apply delay, miner rotation, and fee jitter where appropriate.
+Potential correlation vectors include, but are not limited to:
 
-### 9.8.2 Correlation Risk Mitigations (Recommended)
+- timing correlation between private relay attempts and public broadcast,
+- fee structure changes or premiums,
+- miner selection history,
+- transaction size, shape, and input/output structure.
 
-This section describes recommended strategies to reduce correlation risk **after public broadcast is explicitly authorized**.
+Seal-360 does not claim anonymity, unlinkability, or metadata privacy.
 
-These mitigations reduce, but do not eliminate, correlation risk.
+Correlation risk is inherent when execution transitions from a private delivery
+path to the public network and cannot be fully eliminated.
 
-#### Randomized Broadcast Delay
+---
 
-After public broadcast is authorized, wallets SHOULD introduce a bounded random delay before submission.
+### 9.8.2 Correlation Downgrade Guard
 
-* Delay windows SHOULD be short relative to user urgency.
-* Delay MUST NOT violate liveness requirements.
-* Delay SHOULD be skipped when immediate confirmation is required.
+When transitioning from private relay to authorized public broadcast, wallets
+MUST apply a downgrade guard to reduce deterministic linkage between the two
+execution paths.
 
-#### Miner Rotation
+At minimum, a conformant wallet MUST perform at least one of the following
+actions prior to public broadcast:
 
-Wallets SHOULD avoid repeated use of the same miner for consecutive private relay attempts.
+- introduce a randomized delay of at least one block interval,
+- reconstruct the transaction with a new fee and fresh signatures,
+- verify that the transaction is not already present in the public mempool.
 
-Recommended practices include:
+Wallets MUST NOT immediately rebroadcast a privately relayed transaction without
+applying a downgrade guard.
 
-* random selection among acceptable miners,
-* deprioritizing the most recently used miner,
-* rotating miners across transactions where possible.
+The specific downgrade guard strategy is implementation-defined, but MUST be
+documented and MUST be applied consistently.
 
-Miner rotation reduces long-term profiling and correlation.
-
-#### Fee Jitter
-
-If Replace-By-Fee (RBF) is enabled, wallets MAY apply small randomized fee adjustments when transitioning from private relay to public broadcast.
-
-* Fee jitter SHOULD be minimal and bounded.
-* Fee jitter MUST preserve transaction validity.
-* If RBF is not enabled, no fee modification is performed.
-
-Fee jitter reduces linkage between rejected private submissions and subsequent public broadcasts.
-
-#### Limitations
-
-No mitigation fully eliminates correlation risk once public broadcast is authorized.
-
-Seal-360 does not claim anonymity or unlinkability. These strategies exist to reduce trivial correlation and operational leakage, not to provide privacy guarantees.
+Failure to apply a downgrade guard constitutes non-conformance.
 
 ---
 
@@ -1484,7 +1627,7 @@ All guarantees in this section apply **only while private relay is active**.
 
 Once public broadcast is explicitly authorized, standard Bitcoin threat assumptions apply immediately.
 
-Seal-360 introduces no guarantees beyond those explicitly stated and does not modify Bitcoin consensus, relay, or execution semantics.
+Seal-360 introduces no guarantees beyond those explicitly stated and does not modify Bitcoin consensus, relay, or execution semantics beyond those defined by BIP-360.
 
 ---
 
@@ -1532,8 +1675,7 @@ relay execution:
   authorized.
 
 * **Consensus and relay compatibility**  
-  Seal-360 introduces no changes to Bitcoin consensus rules, Script semantics,
-  mempool policy, or relay behavior.
+  Seal-360 introduces no additional changes to Bitcoin consensus rules, Script semantics, mempool policy, or relay behavior beyond those required by BIP-360.
 
 All guarantees in this section apply only while private relay is active and
 successful. Once public broadcast is explicitly authorized, execution
@@ -1596,45 +1738,51 @@ threat model, or consensus assumptions.
 
 ### 10.3 Security Properties Summary
 
-| Property                     | Provided | Notes |
-|-----------------------------|----------|------|
-| No public mempool exposure  | Yes      | While private relay succeeds |
-| Quantum-resistant transport | Yes      | ML-KEM-768 during relay |
-| Transaction integrity       | Yes      | Template hash binding |
-| User-controlled liveness    | Yes      | Explicit public broadcast authorization |
-| Miner inclusion guarantee   | No       | Miner may refuse |
-| Anonymity                   | No       | Reduces observers, not metadata |
-| Protection after public broadcast | No | Standard Bitcoin exposure applies |
-| On-chain quantum safety     | No       | Requires BIP-360 |
+| Property                               | Provided | Notes |
+|----------------------------------------|----------|------|
+| No public mempool exposure             | Yes      | While private relay succeeds |
+| Quantum-resistant payload confidentiality | Yes   | Encrypt-Before-Transport (EBT) using ML-KEM-768 + AEAD |
+| Transaction integrity                  | Yes      | Template hash binding |
+| User-controlled liveness               | Yes      | Explicit public broadcast authorization |
+| Miner inclusion guarantee              | No       | Miner may refuse or delay |
+| Anonymity                              | No       | Observer set reduced, metadata not concealed |
+| Protection after public broadcast      | No       | Standard Bitcoin exposure applies |
+| On-chain quantum safety                | No       | Requires BIP-360 (P2TSH) |
 
+Seal-360 provides quantum-resistant confidentiality for transaction payloads
+**prior to confirmation** through Encrypt-Before-Transport semantics.  
+It does not rely on transport mechanisms for confidentiality and does not alter
+Bitcoin’s on-chain cryptography.
+
+All guarantees above apply only while private relay is active and successful.
+Once public broadcast is explicitly authorized, execution immediately re-enters
+the standard Bitcoin threat model.
 
 ### 10.4 Security Comparison (Informative)
 
 This table compares execution behavior under standard Bitcoin broadcast,
 BIP-360 alone, and Seal-360 under different execution outcomes.
 
-| Execution Mode                         | Public Mempool Exposure        | Execution-Window Protection | Liveness Characteristics |
-|---------------------------------------|--------------------------------|-----------------------------|--------------------------|
-| Standard Bitcoin                       | Always                         | None                        | Immediate                |
-| BIP-360 Only (P2TSH)                  | Always                         | None                        | Immediate                |
-| Seal-360 (private relay succeeds)     | None prior to confirmation     | Yes                         | Conditional              |
-| Seal-360 (public broadcast authorized)| After explicit authorization  | None                        | Equivalent to standard   |
+| Execution Mode                          | Public Mempool Exposure        | Execution-Window Protection | Payload Confidentiality | Liveness Characteristics |
+|----------------------------------------|--------------------------------|-----------------------------|-------------------------|--------------------------|
+| Standard Bitcoin                        | Always                         | None                        | None                    | Immediate                |
+| BIP-360 Only (P2TSH)                   | Always                         | None                        | None                    | Immediate                |
+| Seal-360 (private relay succeeds)      | None prior to confirmation     | Yes                         | Yes (EBT)               | Conditional              |
+| Seal-360 (public broadcast authorized) | After explicit authorization  | None                        | None                    | Equivalent to standard   |
 
 Interpretation:
 
-* Standard Bitcoin and BIP-360 alone expose signatures to the public mempool
+- Standard Bitcoin and BIP-360 alone expose signatures to the public mempool
   during the execution window.
-* Seal-360 removes public mempool exposure during execution only while private
+- Seal-360 removes public mempool exposure during execution only while private
   relay succeeds.
-* When public broadcast is explicitly authorized, Seal-360 execution behavior
+- Encrypt-Before-Transport (EBT) provides quantum-resistant **payload
+  confidentiality**, not transport-level security.
+- When public broadcast is explicitly authorized, Seal-360 execution behavior
   becomes equivalent to standard Bitcoin for that transaction.
-* Seal-360 does not alter consensus rules, transaction validity, or broadcast
-  availability; it alters delivery timing and visibility only.
 
-Seal-360 therefore provides conditional execution-window protection when private
-relay succeeds and preserves standard Bitcoin execution semantics when public
-broadcast is explicitly authorized.
-
+Seal-360 alters **delivery timing and visibility**, not transaction validity,
+consensus rules, or broadcast availability.
 
 ---
 
@@ -1736,6 +1884,55 @@ If public broadcast occurs under (A) or (B), the wallet MUST record a local Auth
 
 The Authorization Audit Record MUST remain local unless explicitly exported by the user.
 
+### 11.6 Network Partition Handling
+
+Seal-360 implementations MUST account for network partitions, delayed block
+propagation, and partial visibility of confirmation state.
+
+A network partition MAY cause a wallet to temporarily lose visibility into
+blocks mined by a selected miner while the miner continues normal operation.
+
+---
+
+#### Partition Safety Requirement
+
+Before authorizing public broadcast following a private relay attempt, the
+wallet MUST perform at least one of the following checks:
+
+- verify that the transaction is not already present in the public mempool,
+- verify that the transaction has not already confirmed on-chain,
+- verify that the selected miner has not advertised inclusion of the
+  transaction in a candidate block.
+
+Failure to perform a partition safety check constitutes non-conformance.
+
+---
+
+#### Double-Submission Prevention
+
+A wallet MUST NOT authorize public broadcast if it detects that:
+
+- the transaction has already confirmed, or
+- the transaction is already visible in the public mempool.
+
+If confirmation state is ambiguous, the wallet MUST surface execution state and
+require explicit user or policy decision before proceeding.
+
+---
+
+#### Idempotency Constraint
+
+The wallet MUST treat a signed transaction instance as idempotent across
+private relay and public broadcast paths.
+
+The same signed transaction instance MUST NOT be submitted via multiple
+execution paths unless an Explicit Public Broadcast Authorization Event
+(Section 11.4) has occurred.
+
+If a new transaction is constructed for public broadcast as part of downgrade
+handling, it MUST be treated as a distinct transaction instance and MUST be
+re-signed, producing a new `template_hash`.
+
 ---
 
 ## 12. Deployment Requirements
@@ -1777,41 +1974,159 @@ Any wallet that causes public broadcast without an Explicit Public Broadcast Aut
 
 ### 12.2 Miner Requirements
 
-A miner claiming Seal-360 conformance MUST:
+A miner claiming Seal-360 conformance MUST satisfy all requirements in this
+section.
 
-* Publish a valid public encryption key for Encrypted Direct-to-Miner Submission.
-* Accept Encrypted Submissions over an authenticated transport.
-* Reconstruct canonical AAD per Section 9.5.3 and perform AEAD decryption under that AAD.
-* Decrypt submissions and recompute `template_hash` over the decrypted transaction bytes.
-* Reject any submission where AEAD validation fails or where the recomputed `template_hash` does not match the supplied value.
-* Process accepted transactions strictly under standard Bitcoin consensus rules.
-* Implement replay protection for Encrypted Submissions by maintaining a replay cache keyed on (`miner_id`, `submission_id`) until at least `expires_at`:
-  - Any repeated (`miner_id`, `submission_id`) MUST be rejected.
-  - The replay cache MUST survive process restarts where feasible, or MUST be persisted for the duration of the offer validity window.
+Failure to meet any requirement in this section constitutes non-conformance.
 
-A miner claiming Seal-360 conformance MUST NOT:
+---
 
-* Modify transaction bytes after decryption.
-* Create or attempt to create alternative valid spends.
-* Assume any execution authority, custody role, or inclusion obligation.
+#### 12.2.1 Key Publication and Authenticity
 
-Miners MAY refuse, delay, or ignore submissions for any reason.
-Miner refusal or delay affects privacy, liveness, and economic behavior, but does not affect transaction validity or user authority.
+The miner MUST publish a valid post-quantum public encryption key suitable for
+Encrypted Direct-to-Miner Submission.
 
-Miner implementations are not required to trigger, initiate, or signal public broadcast. Public broadcast decisions are made solely by the wallet or policy engine.
+- The key MUST be ML-KEM-768 as defined in FIPS 203.
+- The key MUST be discoverable through an authenticated discovery mechanism
+  defined in Annex H.
+- Each key MUST be identified by a stable `key_id`.
+
+The miner MUST NOT accept Encrypted Submissions encrypted to expired or
+revoked keys.
+
+---
+
+#### 12.2.2 Encrypted Submission Acceptance
+
+The miner MUST accept Encrypted Submissions only over authenticated transport
+mechanisms.
+
+Transport authentication is used solely to identify the submission endpoint.
+The miner MUST NOT rely on transport-layer confidentiality for payload secrecy.
+
+All received payloads MUST be treated as untrusted until cryptographic
+verification succeeds.
+
+---
+
+#### 12.2.3 Replay Protection (Mandatory Persistence)
+
+The miner MUST implement replay protection for Encrypted Submissions.
+
+Replay protection MUST be enforced using the tuple:
+
+- (`miner_id`, `submission_id`)
+
+Replay state MUST satisfy all of the following:
+
+- Replay state MUST be recorded upon first successful decryption attempt.
+- Replay state MUST be persisted across miner restarts.
+- Replay state MUST be retained for at least the full duration of the offer
+  validity window defined by `expires_at`.
+- In-memory-only replay caches are NOT permitted.
+
+Any Encrypted Submission with a previously observed
+(`miner_id`, `submission_id`) tuple that has not yet expired MUST be rejected.
+
+---
+
+#### 12.2.4 Offer Expiry Enforcement
+
+The miner MUST verify that `expires_at` has not passed before attempting
+decryption.
+
+Expired offers MUST be rejected prior to cryptographic processing.
+
+---
+
+#### 12.2.5 Cryptographic Processing
+
+Upon receiving an Encrypted Submission, the miner MUST perform the following
+steps in order:
+
+1. Validate submission structure and required fields.
+2. Enforce replay protection.
+3. Verify that `expires_at` has not passed.
+4. Decapsulate the shared secret using the miner’s ML-KEM-768 private key.
+5. Derive the AEAD encryption key from the shared secret.
+6. Reconstruct the canonical AEAD associated data (AAD) exactly as specified
+   in Section 9.5.3.
+7. Perform AEAD decryption using the reconstructed AAD.
+8. Recompute `template_hash` over the decrypted transaction bytes.
+9. Reject the submission if the recomputed `template_hash` does not match the
+   supplied value.
+
+Any failure at any step MUST result in rejection of the submission.
+
+---
+
+#### 12.2.6 Transaction Validation and Inclusion
+
+If cryptographic verification succeeds, the miner MUST validate the transaction
+under standard Bitcoin consensus rules.
+
+If the transaction is valid, the miner MAY include it in a candidate block
+according to the miner’s normal fee, policy, and ordering logic.
+
+Seal-360 does NOT impose any obligation to include a transaction.
+
+---
+
+#### 12.2.7 Non-Authority Constraint
+
+The miner MUST NOT:
+
+- modify transaction bytes after decryption,
+- create or attempt to create alternative valid spends,
+- assume custody, signing, execution, or broadcast authority,
+- trigger or initiate public broadcast.
+
+Miner refusal, delay, censorship, or non-inclusion is permitted and does not
+constitute a protocol violation.
+
+---
+
+#### 12.2.8 Failure Semantics
+
+Any rejection, refusal, delay, or non-inclusion by the miner:
+
+- MUST be treated as an execution failure,
+- MUST NOT trigger automatic public broadcast,
+- MUST NOT modify transaction bytes,
+- MUST NOT assert execution authority.
+
+All public broadcast decisions remain exclusively with the wallet or policy
+engine and require an Explicit Public Broadcast Authorization Event
+(Section 11.4).
+
+---
+
+#### 12.2.9 Conformance Boundary
+
+A miner MAY advertise Seal-360 support only if all requirements in this section
+are met.
+
+Partial, best-effort, or transport-only implementations MUST NOT claim
+Seal-360 conformance.
 
 ---
 
 ### 12.3 Bitcoin Node Requirements
 
-Bitcoin nodes require **no changes**.
+Bitcoin nodes require no changes beyond those required to support BIP-360.
 
-Seal-360 operates entirely at the wallet and miner interface level and does not modify:
+Seal-360 operates exclusively at the wallet–miner interface and does not modify:
 
-* consensus rules,
-* Script semantics,
-* mempool policy,
-* relay logic.
+- block or transaction validation rules,
+- Script semantics,
+- mempool policy,
+- peer-to-peer relay behavior.
+
+Transactions delivered via Seal-360 private relay are validated identically to
+any other BIP-360-compliant transactions once included in a block.
+
+Bitcoin nodes are not required to distinguish Seal-360-delivered transactions
+from standard transactions.
 
 ---
 
@@ -1873,10 +2188,7 @@ Seal-360 preserves Bitcoin’s censorship resistance by ensuring that public
 broadcast remains reachable at all times through explicit authorization, while
 preventing automatic or silent exposure during execution.
 
-Seal-360 is a standalone, opt-in execution-layer mitigation that composes
-cleanly with BIP-360 but does not depend on it. It provides conditional reduction
-of execution-window exposure without introducing new trust assumptions or
-consensus changes.
+Seal-360 is an opt-in execution-layer mitigation that composes cleanly with and assumes the presence of BIP-360, providing execution-window protection on top of BIP-360’s output hardening.
 
 ---
 
@@ -2060,17 +2372,18 @@ Any extension that violates these constraints is non-conformant.
 
 ### B.4 Security Impact Summary
 
-| Property                    | Standard Bitcoin | BIP-360 | BIP-360 + Seal-360 (Quantum-Safety Mode) | BIP-360 + Seal-360 (Liveness Mode) |
-|-----------------------------|------------------|---------|------------------------------------------|------------------------------------|
-| Output quantum hardening    | No               | Yes     | Yes                                      | Yes                                |
-| Execution-window protection | No               | No      | Yes                                      | Opportunistic                      |
-| Public mempool exposure     | Yes              | Yes     | No prior to confirmation                 | After authorization                |
-| Quantum-resistant transport | No               | No      | Yes                                      | No                                 |
-| Liveness guarantee          | Yes              | Yes     | Conditional                              | Yes                                |
-| Consensus changes required  | No               | No      | No                                       | No                                 |
+| Property                         | Standard Bitcoin | BIP-360 | BIP-360 + Seal-360 (Quantum-Safety Mode) | BIP-360 + Seal-360 (Liveness Mode) |
+|----------------------------------|------------------|---------|------------------------------------------|------------------------------------|
+| Output quantum hardening         | No               | Yes     | Yes                                      | Yes                                |
+| Execution-window protection      | No               | No      | Yes                                      | Opportunistic                      |
+| Public mempool exposure          | Yes              | Yes     | No prior to confirmation                 | After authorization                |
+| Payload confidentiality (PQ)    | No               | No      | Yes (EBT)                                | No                                 |
+| Liveness guarantee               | Yes              | Yes     | Conditional                              | Yes                                |
+| Consensus changes required       | No               | Yes     | Yes                                      | Yes                                |
 
 Seal-360 in quantum-safety mode provides execution-window protection by removing
-public mempool exposure while private relay succeeds.
+public mempool exposure and applying Encrypt-Before-Transport payload
+confidentiality while private relay succeeds.
 
 Seal-360 in liveness mode preserves standard Bitcoin execution behavior after
 explicit public broadcast authorization, while still allowing opportunistic
@@ -2090,162 +2403,212 @@ Seal-360 therefore prioritizes user sovereignty over execution semantics while p
 
 ---
 
-## Annex C: Test Vectors (Reference)
+## Annex C: Test Vectors and Conformance Tests (Reference)
 
-These test vectors illustrate expected behavior for conformant Seal-360 implementations. They are informative but strongly recommended for interoperability testing.
+This annex defines reference test vectors and required behavioral tests for
+Seal-360 implementations.
 
----
-
-### C.1 Successful Private Relay
-
-**Inputs:**
-
-* Fully signed Bitcoin transaction
-* Valid miner public encryption key
-* Timeout window ≥ 1 block
-
-**Process:**
-
-1. Wallet computes `template_hash` per Section 9.3.
-2. Wallet encrypts transaction and submits via Encrypted Submission.
-3. Miner decrypts transaction.
-4. Miner recomputes `template_hash` and verifies equality.
-5. Miner includes transaction in block.
-
-**Expected Result:**
-
-* Transaction confirms.
-* No public mempool exposure occurs prior to confirmation.
+Unless explicitly stated otherwise, tests in this annex are REQUIRED for any
+implementation claiming Seal-360 conformance.
 
 ---
 
-### C.2 Miner Refusal with User Authorization
+### C.1 Successful Private Relay (Happy Path)
 
-**Inputs:**
+**Inputs**
 
-* Fully signed Bitcoin transaction
-* Miner refuses submission or does not include within timeout
+- Fully signed Taproot (SegWit v1) Bitcoin transaction
+- Valid miner ML-KEM-768 public key
+- Valid offer expiry (`expires_at` in the future)
 
-**Process:**
+**Process**
 
-1. Wallet submits encrypted transaction via Encrypted Submission.
-2. Miner refuses or does not include the transaction within the wallet-defined timeout.
-3. Wallet surfaces execution state to the user or policy engine.
-4. User or policy explicitly authorizes one of the following actions:
-   - Retry private relay with a different miner.
-   - Wait and retry later.
-   - Authorize public broadcast (explicit quantum-unsafe choice).
-   - Abort the transaction.
+1. Wallet constructs and signs the transaction.
+2. Wallet computes `template_hash`.
+3. Wallet encrypts the transaction and submits via Encrypted Submission.
+4. Miner decrypts and verifies AEAD integrity.
+5. Miner recomputes and verifies `template_hash`.
+6. Miner includes the transaction in a block.
 
-**Expected Result:**
+**Expected Result**
 
-* If public broadcast is authorized, the transaction propagates via the standard public mempool and confirmation proceeds under normal Bitcoin assumptions.
-* If retry is chosen, the wallet attempts submission to an alternative miner.
-* No public mempool exposure occurs unless public broadcast is explicitly authorized.
-
----
-
-### C.3 Template Hash Mismatch
-
-**Inputs:**
-
-* Encrypted Submission with altered or corrupted transaction bytes
-
-**Process:**
-
-1. Miner decrypts the transaction.
-2. Miner recomputes `template_hash`.
-3. The recomputed hash does not match the supplied value.
-4. Miner rejects the submission.
-5. Wallet surfaces execution state to the user or policy engine.
-
-**Expected Result:**
-
-* No public mempool exposure occurs.
-* The wallet MAY retry private relay with a different miner.
-* The wallet MAY await user or policy authorization for public broadcast.
-* No automatic public broadcast is performed.
+- Transaction confirms on-chain.
+- No public mempool exposure occurs prior to confirmation.
+- Replay cache records (`miner_id`, `submission_id`) until expiry.
 
 ---
 
-### C.4 Network Failure During Relay
+### C.2 Replay Detection
 
-**Inputs:**
+**Inputs**
 
-* Valid encrypted submission
-* Transport failure or endpoint unreachable during submission
+- Valid Encrypted Submission reused verbatim.
 
-**Process:**
+**Process**
 
-1. Wallet attempts Encrypted Submission to the selected miner.
-2. Transport fails or the submission endpoint becomes unreachable.
-3. Wallet retries submission or selects an alternative miner, subject to wallet-defined retry limits.
-4. If retry limits are exceeded, the wallet surfaces execution state to the user or policy engine.
-5. User or policy explicitly authorizes one of the following actions:
-   - Retry with a different miner.
-   - Wait and retry later.
-   - Authorize public broadcast (explicit quantum-unsafe choice).
-   - Abort the transaction.
+1. Submit encrypted payload to miner.
+2. Submit the identical payload again before `expires_at`.
 
-**Expected Result:**
+**Expected Result**
 
-* If public broadcast is authorized, the transaction propagates via the standard public mempool.
-* If retry is chosen, the wallet attempts submission to another miner.
-* No transaction is publicly broadcast without explicit authorization.
-* No silent drop or indefinite execution deadlock occurs.
+- Second submission is rejected.
+- Miner reports replay detection.
+- No execution state downgrade occurs.
 
 ---
 
-### C.5 RBF Retry via Private Relay
+### C.3 Expired Offer Rejection
 
-**Inputs:**
+**Inputs**
 
-* Original transaction marked RBF
-* Higher-fee replacement constructed
+- Encrypted Submission where `expires_at` is in the past.
 
-**Process:**
+**Expected Result**
 
-1. Wallet constructs replacement transaction.
-2. Wallet computes new `template_hash` per Section 9.3.
-3. Wallet performs new Encrypted Submission.
-
-**Expected Result:**
-
-* Miner applies standard Bitcoin RBF rules.
-* Higher-fee transaction replaces earlier version.
+- Miner rejects submission prior to decryption.
+- Wallet surfaces execution state.
+- No public broadcast occurs without explicit authorization.
 
 ---
 
-### C.6 Conformance Expectation
+### C.4 AEAD Integrity Failure
 
-A conformant implementation MUST demonstrate:
+**Inputs**
 
-* correct template hash computation,
-* refusal on hash mismatch,
-* execution state surfacing on private relay failure,
-* user-authorized public broadcast when liveness is required,
-* no silent execution deadlocks.
+- Encrypted Submission with modified ciphertext or AAD field.
 
-Failure to satisfy these behaviors constitutes non-conformance.
+**Expected Result**
+
+- AEAD decryption fails.
+- Miner rejects submission.
+- Wallet surfaces execution state.
 
 ---
 
-### C.7 No-Broadcast-on-Failure Conformance Tests
+### C.5 Template Hash Mismatch
 
-These tests are normative for conformance claims.
+**Inputs**
 
-A conformant wallet MUST demonstrate that no public broadcast occurs without an Explicit Public Broadcast Authorization Event (Section 11.4) under the following scenarios:
+- Encrypted Submission where decrypted transaction bytes differ from
+  supplied `template_hash`.
 
-1. Miner refusal
-2. Inclusion timeout
-3. Transport failure
-4. Discovery failure (no eligible miners)
-5. Application crash and restart during PENDING state
-6. Policy engine present but no pre-armed broadcast policy configured
+**Expected Result**
 
-**Expected Result (all cases):**
-* The wallet surfaces execution state and offers RETRY / WAIT / AUTHORIZE PUBLIC BROADCAST / ABORT.
-* No network broadcast occurs unless an Explicit Public Broadcast Authorization Event is recorded.
+- Miner recomputes `template_hash`.
+- Mismatch detected.
+- Submission rejected as a hard integrity failure.
+
+---
+
+### C.6 Witness Malleability Rejection
+
+**Inputs**
+
+- Non-Taproot transaction (legacy or SegWit v0).
+
+**Expected Result**
+
+- Wallet refuses to initiate Seal-360 execution.
+- Transaction MAY be broadcast only via explicit public authorization.
+
+---
+
+### C.7 Transport Failure
+
+**Inputs**
+
+- Valid encrypted payload.
+- Transport failure or endpoint unreachable.
+
+**Expected Result**
+
+- Wallet retries alternative transports or miners if configured.
+- Execution state is surfaced after retry exhaustion.
+- No automatic public broadcast occurs.
+
+---
+
+### C.8 Network Partition Handling
+
+**Inputs**
+
+- Valid private relay submission.
+- Miner includes transaction during wallet network partition.
+
+**Process**
+
+1. Wallet loses confirmation visibility.
+2. Timeout expires.
+3. Wallet checks mempool and chain state before authorization.
+
+**Expected Result**
+
+- Wallet detects confirmation or ambiguity.
+- Wallet MUST NOT authorize public broadcast without explicit user or policy
+  confirmation.
+
+---
+
+### C.9 Correlation Downgrade Guard
+
+**Inputs**
+
+- Failed private relay followed by authorized public broadcast.
+
+**Process**
+
+1. Wallet enforces delay and fee normalization rules.
+2. Wallet broadcasts transaction only after mitigation steps.
+
+**Expected Result**
+
+- No immediate broadcast correlation.
+- Transaction broadcast occurs only after explicit authorization.
+
+---
+
+### C.10 RNG Failure Handling
+
+**Inputs**
+
+- Simulated failure of cryptographically secure RNG during nonce generation.
+
+**Expected Result**
+
+- Wallet aborts Encrypted Submission.
+- Execution state is surfaced.
+- No encrypted payload is transmitted.
+
+---
+
+### C.11 Miner Restart Replay Safety
+
+**Inputs**
+
+- Valid submission processed by miner.
+- Miner restarts.
+- Identical submission resent.
+
+**Expected Result**
+
+- Replay cache persists across restart.
+- Submission is rejected.
+- Miner remains conformant.
+
+---
+
+### C.12 Conformance Summary
+
+A conformant Seal-360 implementation MUST demonstrate:
+
+- strict enforcement of Encrypt-Before-Transport semantics,
+- replay detection persistence,
+- Taproot-only enforcement,
+- no silent downgrade to public broadcast,
+- correct handling of partitions and transport failure,
+- explicit authorization for all public broadcasts.
+
+Failure to pass any REQUIRED test above constitutes non-conformance.
 
 ---
 
@@ -2364,7 +2727,17 @@ Seal-360 preserves Bitcoin’s censorship resistance by ensuring that user-autho
 No. Seal-360 reduces the number of observers during execution but does not provide anonymity or metadata-privacy guarantees.
 
 **Is Seal-360 quantum-safe?**  
-Seal-360 provides quantum-resistant transport during the execution window if the recommended cryptographic profile is used. It does not change Bitcoin’s on-chain signature scheme and does not provide post-quantum signatures on-chain.
+Seal-360 provides quantum-resistant payload confidentiality
+(Encrypt-Before-Transport, EBT) during the execution window when the recommended
+cryptographic profile is used.
+
+It does not modify Bitcoin’s on-chain signature scheme, does not provide
+post-quantum signatures on-chain, and does not claim end-to-end quantum safety.
+
+Seal-360 reduces a specific execution-window attack surface and complements
+BIP-360’s output-layer hardening; it is not a complete quantum-security solution
+by itself.
+
 
 **Can Seal-360 be used with legacy outputs?**  
 Yes. Seal-360 can be used with any broadcast-valid Bitcoin transaction. Output-layer quantum hardening requires BIP-360.
@@ -2653,6 +3026,23 @@ Private relay does **not** include automatic public broadcast. Public broadcast,
 
 ---
 
+### Encrypt-Before-Transport (EBT)
+
+A security invariant requiring that sensitive payloads are cryptographically
+encrypted prior to entering any transport, framing, routing, or delivery
+mechanism.
+
+EBT defines payload confidentiality only and does not define transport,
+authentication, routing, retry, or delivery semantics.
+
+Encrypt-Before-Transport (EBT) is a shared security invariant across the broader
+post-quantum (PQ) stack, including PQHD, PQSF, and related execution and policy
+frameworks. Seal-360 defines and enforces EBT locally for execution-layer
+correctness and does not require adoption of other stack components for
+conformance.
+
+---
+
 ### Encrypted Direct-to-Miner Submission (Encrypted Submission)
 
 The act of encrypting a fully signed Bitcoin transaction under a miner’s ML-KEM-768 public key and transmitting it directly to that miner for block inclusion.
@@ -2853,79 +3243,235 @@ Failure to verify a manifest signature MUST result in rejection of all associate
 
 ---
 
-### H.4 Key Rotation
+## H.4 Key Rotation (Normative)
 
-Miners MUST support encryption key rotation to allow regular operational updates and emergency replacement.
+Miners claiming Seal-360 conformance MUST support encryption key rotation to
+allow routine operational updates and emergency replacement.
 
-#### Pre-Rotation
-
-At least 7 days before rotation, miners SHOULD:
-
-* Publish a new `ml_kem_768_pubkey` with a future `expires_at`.
-* Include both the old and new keys in the manifest.
-* Assign a unique `key_id` to each key.
-
-During this period, wallets MAY submit using either key.
-
-#### Rotation Window
-
-During the rotation window:
-
-* Miners MUST accept Encrypted Submissions encrypted to either the old or new key.
-* Wallets SHOULD prefer the newest non-expired key.
-* New submissions SHOULD use the new key where available.
-
-#### Post-Rotation
-
-After the old key’s `expires_at`:
-
-* The old key MUST be removed from the manifest.
-* Submissions encrypted to the expired key MUST be rejected.
-
-#### Emergency Rotation
-
-If a key compromise is suspected:
-
-* Immediate rotation is permitted.
-* Miners MAY invalidate compromised keys without prior notice.
-* Wallets MUST re-fetch manifests on submission failure and retry key selection.
-
-Key rotation MUST NOT alter execution semantics or trigger public broadcast automatically. Public broadcast, if used, requires explicit user or policy authorization.
+Key rotation applies exclusively to the miner’s post-quantum encryption keys
+used for Encrypted Direct-to-Miner Submission and MUST NOT alter transaction
+execution semantics, authorization requirements, or public broadcast behavior.
 
 ---
 
-### H.5 Sybil Resistance
+### H.4.1 Key Identification
 
-Wallets SHOULD implement basic Sybil-resistance measures when selecting miners for Seal-360 private relay.
+Each published encryption key MUST:
 
-These measures reduce impersonation risk and concentration without introducing new trust assumptions.
+* be an ML-KEM-768 public key as defined in FIPS 203,
+* be uniquely identified by a stable `key_id`,
+* be bound to a specific validity window via `expires_at`,
+* appear only within a signed discovery manifest (Section H.2).
 
-**Identity Verification:**
+Keys without a `key_id` or expiry information MUST be rejected.
 
-* Track `miner_id` consistency across discovery mechanisms
-* Reject frequent or unexplained identity changes
-* Require stable `identity_key` continuity across manifest updates
+---
 
-**Reputation Signals:**
+### H.4.2 Scheduled Rotation
 
-* Track historical inclusion success
-* Track timeout and refusal rates
-* Track premature leak events where detectable
-* Deprioritize newly announced or short-lived identities
+For planned key rotation, miners SHOULD follow the procedure below.
 
-**Hashpower Correlation:**
+At least **24 hours** before the intended rotation time, the miner SHOULD:
 
-* Where available, correlate `miner_id` with observed on-chain hashpower
-* Deprioritize identities with no observable mining history
-* Treat hashpower correlation as a heuristic only, not a trust guarantee
+* publish a new ML-KEM-768 public key in the discovery manifest,
+* assign a new, unique `key_id` to the new key,
+* include both the old and new keys in the manifest concurrently,
+* set `expires_at` on the old key to a time no more than 24 hours in the future.
 
-**Routing Discipline:**
+During this overlap window:
 
-* Wallets SHOULD query multiple miners in parallel
-* Wallets SHOULD randomize selection among acceptable candidates
-* Wallets SHOULD avoid repeated selection of a single miner across transactions
+* miners MUST accept Encrypted Submissions encrypted to either key,
+* wallets MUST prefer the newest non-expired key,
+* new submissions SHOULD use the new key where available.
 
-These measures are defensive heuristics only. Failure to implement them does not affect Seal-360 conformance.
+Extended overlap windows increase exposure if an older key is compromised and
+SHOULD be avoided for high-value transactions.
+
+---
+
+### H.4.3 Post-Rotation Enforcement
+
+After a key’s `expires_at` time:
+
+* the expired key MUST be removed from the discovery manifest,
+* Encrypted Submissions encrypted to the expired key MUST be rejected,
+* replay state associated with the expired key MAY be safely discarded after
+  expiry.
+
+Acceptance of submissions encrypted to expired keys constitutes
+non-conformance.
+
+---
+
+### H.4.4 Emergency Rotation
+
+If compromise of an encryption key is suspected or confirmed, miners MAY perform
+emergency rotation without advance notice.
+
+In an emergency rotation:
+
+* the compromised key MUST be immediately removed or marked invalid,
+* Encrypted Submissions encrypted to the compromised key MUST be rejected,
+* a replacement key SHOULD be published as soon as practicable.
+
+Wallets encountering submission failure due to key invalidation:
+
+* MUST re-fetch the discovery manifest,
+* MUST retry key selection using a non-expired key if available,
+* MUST NOT trigger automatic public broadcast as a result of key rotation.
+
+Emergency rotation MUST NOT result in silent downgrade to public broadcast.
+
+---
+
+### H.4.5 Wallet Requirements
+
+Wallets implementing Seal-360 MUST:
+
+* validate key expiry using RFC 3339 UTC timestamps (Section 6),
+* prefer the newest non-expired key when multiple keys are present,
+* reject keys that are expired, revoked, or malformed,
+* treat key-rotation-related submission failure as an execution failure and
+  surface execution state accordingly.
+
+Wallets MUST NOT continue using older keys when a newer valid key is available,
+except during the defined overlap window.
+
+---
+
+### H.4.6 Scope Clarification
+
+Key rotation affects confidentiality only.
+
+Key rotation:
+
+* does NOT alter transaction validity,
+* does NOT alter authorization requirements,
+* does NOT grant miners execution authority,
+* does NOT trigger public broadcast.
+
+All public broadcast decisions remain subject to Explicit Public Broadcast
+Authorization (Section 11.4).
+
+---
+
+### H.5 Miner Discovery Hardening
+
+Seal-360 miner discovery MUST resist Sybil attacks, identity churn, and
+misrepresentation of execution capability.
+
+Discovery mechanisms MUST NOT assume that advertised miner identities are
+honest, unique, or economically independent.
+
+---
+
+#### H.5.1 Identity Stability Requirement
+
+A miner identity (`miner_id`) MUST be stable across manifest updates.
+
+Wallets MUST reject discovery entries where:
+
+- `miner_id` changes without continuity of `identity_key`,
+- `identity_key` rotates without a documented key-rotation event,
+- multiple distinct endpoints advertise the same `miner_id` with conflicting
+  parameters.
+
+Frequent identity churn MUST be treated as a negative signal.
+
+---
+
+#### H.5.2 Hashpower Correlation Requirement
+
+Wallets MUST require evidence that a discovered miner identity corresponds to
+active Bitcoin block production.
+
+At minimum, wallets MUST verify one of the following within a configurable
+observation window:
+
+- recent blocks mined that can be attributed to the miner or pool,
+- publicly verifiable pool attribution (coinbase tags, payout addresses),
+- an externally verifiable reputation registry that maps `miner_id` to observed
+  hashpower.
+
+Discovery entries lacking verifiable block production evidence MUST NOT be used
+for private relay.
+
+---
+
+#### H.5.3 Minimum Activity Threshold
+
+Wallets MUST enforce a minimum activity threshold before using a miner for
+private relay.
+
+The threshold MUST be based on one or more of:
+
+- minimum blocks mined within the observation window,
+- minimum share of recent network hashpower,
+- minimum successful confirmation rate observed by the wallet.
+
+The exact threshold is implementation-defined but MUST be documented.
+
+---
+
+#### H.5.4 Sybil Set Limitation
+
+Wallets MUST limit the number of miners selected from any single identity or
+attribution cluster.
+
+Miners sharing:
+
+- payout infrastructure,
+- coinbase tagging patterns,
+- `identity_key` lineage,
+- network endpoints,
+
+MUST be treated as a single cluster for selection and routing purposes.
+
+Wallets MUST NOT route all private relay attempts exclusively to a single
+cluster when multiple eligible clusters exist.
+
+---
+
+#### H.5.5 Offer Cross-Validation
+
+Wallets MUST cross-validate miner offers when multiple candidates are available.
+
+At minimum, wallets MUST compare:
+
+- fee premiums,
+- expiry windows,
+- reliability signals.
+
+If all discovered miners advertise identical or near-identical premium terms,
+wallets SHOULD surface a cartel-risk warning to the user or policy engine.
+
+---
+
+#### H.5.6 Failure Handling
+
+Failure to satisfy any requirement in this section MUST result in:
+
+- exclusion of the miner from private relay selection, and
+- surfacing of execution state to the user or policy engine.
+
+Miner discovery hardening failures MUST NOT trigger automatic public broadcast.
+Public broadcast remains subject to Explicit Public Broadcast Authorization
+(Section 11.4).
+
+---
+
+#### H.5.7 Scope Clarification
+
+This section defines minimum discovery hardening requirements.
+
+It does not:
+
+- guarantee miner honesty,
+- prevent collusion,
+- prevent economic coercion.
+
+It reduces trivial Sybil and impersonation attacks while preserving deployability
+and incremental adoption.
 
 ---
 
@@ -3102,7 +3648,7 @@ This annex exists for operators deploying layered post-quantum security stacks a
 
 ### I.1 Purpose and Scope
 
-Seal-360 requires no external dependencies beyond standard Bitcoin transaction handling and cryptographic libraries.
+Seal-360 requires no external dependencies beyond BIP-360-compliant Bitcoin transaction handling and standard cryptographic libraries.
 
 Organizations deploying broader post-quantum security architectures MAY integrate Seal-360 with complementary components to obtain additional guarantees such as:
 
@@ -3121,16 +3667,16 @@ Seal-360 remains correct, safe, and deployable without any stack integration.
 
 Optional integrations provide additional assurance, not additional authority.
 
-| Property                       | Seal-360 Alone | With Integration |
-|--------------------------------|----------------|------------------|
-| Eliminates public mempool exposure | Yes        | Yes              |
-| User-authorized public broadcast   | Yes        | Yes              |
-| Consensus compatibility            | Yes        | Yes              |
-| Quantum-resistant transport        | Yes        | Yes              |
-| Canonical encoding                 | Not provided | Provided         |
-| Verifiable time binding            | Not provided | Provided         |
-| Leak detection                     | Not provided | Provided         |
-| Policy enforcement                 | Not provided | Provided         |
+| Property                                | Seal-360 Alone | With Optional Integration |
+|-----------------------------------------|----------------|---------------------------|
+| Eliminates public mempool exposure      | Yes            | Yes                       |
+| User-authorized public broadcast        | Yes            | Yes                       |
+| Consensus compatibility (BIP-360)       | Yes            | Yes                       |
+| Payload confidentiality (EBT)           | Yes            | Yes                       |
+| Canonical encoding                      | Not provided   | Provided                  |
+| Verifiable time binding                 | Not provided   | Provided                  |
+| Leak detection                          | Not provided   | Provided                  |
+| Policy enforcement                     | Not provided   | Provided                  |
 
 Stack integration MUST NOT:
 - trigger public broadcast automatically,
@@ -3141,6 +3687,11 @@ Stack integration MUST NOT:
 
 Public broadcast, if used, remains an explicitly authorized execution choice
 outside the Seal-360 private relay mechanism.
+
+Encrypt-Before-Transport (EBT) is used consistently across the PQ stack to ensure
+that sensitive payloads are encrypted prior to entering any transport or routing
+layer. Seal-360 adopts this invariant independently and does not introduce any
+normative dependency on other PQ components.
 
 ---
 
@@ -3277,7 +3828,7 @@ Optional integrations MUST NOT:
 - introduce execution deadlock,
 - alter signed transaction bytes,
 - assert miner guarantees,
-- modify Bitcoin consensus or relay behavior.
+- modify Bitcoin consensus behavior beyond that defined by BIP-360.
 
 Any integration that violates these constraints is non-conformant with Seal-360.
 
@@ -3293,29 +3844,6 @@ Optional integrations add:
 - richer policy control.
 
 They are strictly additive and MUST NOT be required for baseline deployment or conformance.
-
----
-
-### I.10 Integration Decision Matrix
-
-| Feature | Seal-360 Alone | + PQSF | + Epoch Clock | + ZEB | + PQSEC | + PQEH |
-|--------|----------------|--------|---------------|-------|---------|--------|
-| Mempool exposure eliminated | Yes | Yes | Yes | Yes | Yes | Yes |
-| Quantum-resistant transport | Yes | Yes | Yes | Yes | Yes | Yes |
-| User-authorized public broadcast | Yes | Yes | Yes | Yes | Yes | Yes |
-| Canonical encoding | No | Yes | Yes | Yes | Yes | Yes |
-| Verifiable time binding | No | No | Yes | Yes | Yes | Yes |
-| Systematic leak detection | No | No | No | Yes | Yes | Yes |
-| Policy-driven enforcement | No | No | No | No | Yes | Yes |
-| Multi-phase execution | No | No | No | No | No | Yes |
-| Implementation complexity | Low | Medium | Medium | Medium | High | High |
-| External dependencies | 0 | 1 | 2 | 3 | 4 | 5 |
-
-Seal-360 conformance does not depend on any optional integration listed above.
-
-Optional integrations add determinism, observability, or policy control, but do
-not modify Seal-360’s execution semantics, authorization model, or consensus
-compatibility.
 
 ---
 
@@ -3376,8 +3904,8 @@ At each phase, deployments remain interoperable with earlier phases.
 ### I.13 Security Properties Comparison
 
 **Seal-360 Alone**
-- Eliminates mempool exposure during private relay
-- Quantum-resistant transport
+- Eliminates public mempool exposure during private relay
+- Quantum-resistant payload confidentiality (EBT)
 - User-authorized public broadcast preserves liveness
 - Template hash prevents miner modification
 - No policy enforcement
@@ -3406,7 +3934,17 @@ At each phase, deployments remain interoperable with earlier phases.
 - Multi-phase execution coordination
 - Pre-execution authorization
 
-Each layer adds optional assurance without changing Seal-360’s core guarantees.
+| Property                               | Seal-360 Alone | + PQSF | + PQSF + Time | + PQSF + Time + Leak Detection | Full Stack |
+|----------------------------------------|----------------|--------|---------------|--------------------------------|------------|
+| Public mempool exposure eliminated     | Yes            | Yes    | Yes           | Yes                            | Yes        |
+| Payload confidentiality (EBT)          | Yes            | Yes    | Yes           | Yes                            | Yes        |
+| User-authorized public broadcast       | Yes            | Yes    | Yes           | Yes                            | Yes        |
+| Transaction byte integrity             | Yes            | Yes    | Yes           | Yes                            | Yes        |
+| Deterministic encoding                 | No             | Yes    | Yes           | Yes                            | Yes        |
+| Verifiable time anchoring              | No             | No     | Yes           | Yes                            | Yes        |
+| Execution-window leak detection        | No             | No     | No            | Yes                            | Yes        |
+| Policy-driven execution control        | No             | No     | No            | No                             | Yes        |
+| Pre-execution coordination             | No             | No     | No            | No                             | Yes        |
 
 ---
 
@@ -3450,7 +3988,7 @@ Interoperability is preserved through:
 
 ### I.16 Summary
 
-Seal-360 is a standalone execution-layer protocol.
+Seal-360 is a standalone execution-layer protocol designed to operate in Bitcoin environments that have adopted BIP-360.
 
 Stack integration provides optional hardening for organizations deploying comprehensive post-quantum security frameworks.
 
@@ -3729,7 +4267,7 @@ Receive to BIP-360 output
 **Result:**
 - Output-layer exposure removed (BIP-360)
 - Execution-layer exposure removed (Seal-360)
-- No consensus changes required
+- No additional consensus changes beyond those required by BIP-360
 
 Without Seal-360, BIP-360 alone leaves the execution window exposed.
 
@@ -4143,7 +4681,8 @@ impl ReplayCache {
 }
 ```
 
-Production implementations SHOULD persist replay state across restarts where feasible for the duration of offer validity.
+Production implementations MUST persist replay state across restarts for at
+least the duration of the offer validity window.
 
 ---
 
