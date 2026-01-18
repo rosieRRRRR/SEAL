@@ -19,7 +19,7 @@ BIP-360 (Pay-to-Tapscript-Hash) secures outputs at rest by removing Taproot key-
 
 Under normal operation, SEAL does not broadcast transactions to the public mempool. If a transaction is decrypted and included but later orphaned or reorganized, the execution attempt is terminal and the spend is considered exposed. In such cases, the wallet transitions execution to a failure state, monitors the public mempool for conflicting transactions, and surfaces any observed double-spend attempts to the user or policy layer. Any recovery action, including fee-bumped replacement (RBF) or standard Bitcoin broadcast, is explicitly authorized and constitutes a new execution attempt.
 
-SEAL introduces no Bitcoin consensus changes, no Script semantics changes, and no transaction validity changes. It does not define endpoint discovery, inclusion guarantees, or privacy beyond execution-window exposure reduction.
+SEAL introduces no Bitcoin consensus changes (beyond those defined by BIP-360 where applicable), no Script semantics changes, and no transaction validity changes (beyond those defined by BIP-360). It does not define endpoint discovery, inclusion guarantees, or privacy beyond execution-window exposure reduction.
 
 ---
 
@@ -207,7 +207,7 @@ SEAL operates exclusively at the execution layer.
 
 It does not:
 
-* introduce consensus changes
+* introduce consensus changes (beyond those defined by BIP-360 where applicable)
 * modify Script semantics
 * alter transaction validity rules (beyond those defined by BIP-360)
 * introduce custody authority
@@ -444,7 +444,7 @@ User control is paramount. Wallets MUST NOT lock users into private relay withou
 
 SEAL does not provide miner inclusion guarantees, confirmation timeliness, anonymity, metadata privacy, or censorship resistance through private relay.
 
-SEAL does not introduce on-chain post-quantum signatures, modify consensus rules, alter Script semantics, or change transaction validity.
+SEAL does not introduce on-chain post-quantum signatures, modify consensus rules (beyond those defined by BIP-360 where applicable), alter Script semantics, or change transaction validity (beyond those defined by BIP-360).
 
 SEAL does not attempt to prevent miner withholding, coordination, or economic coercion. Such behavior is treated as an execution failure and surfaced for explicit recovery decisions.
 
@@ -667,7 +667,7 @@ Consensus layer: No on-chain post-quantum signatures (requires future upgrade)
 
 ### 7.7 Design Rationale and Common Objections
 
-SEAL is an opt-in execution-layer protocol that reduces exposure during the signing-to-confirmation window without altering Bitcoin consensus, Script semantics, or transaction validity.
+SEAL is an opt-in execution-layer protocol that reduces exposure during the signing-to-confirmation window without altering Bitcoin consensus (beyond those defined by BIP-360 where applicable), Script semantics, or transaction validity (beyond those defined by BIP-360).
 
 Key design points:
 
@@ -1353,7 +1353,7 @@ While private relay succeeds, signed transaction bytes are not broadcast to the 
 
 SEAL does not guarantee miner inclusion, confirmation timeliness, ordering, censorship resistance, anonymity, metadata privacy, or post-confirmation protection. Submission Endpoints may withhold, delay, or refuse transactions, and may observe transaction contents during private execution.
 
-SEAL does not provide on-chain post-quantum signatures and does not alter Bitcoin consensus rules, Script semantics, or transaction validity. Post-confirmation hardening requires output-layer measures such as BIP-360, and comprehensive post-quantum security ultimately requires consensus-layer upgrades.
+SEAL does not provide on-chain post-quantum signatures and does not alter Bitcoin consensus rules (beyond those defined by BIP-360 where applicable), Script semantics, or transaction validity (beyond those defined by BIP-360). Post-confirmation hardening requires output-layer measures such as BIP-360, and comprehensive post-quantum security ultimately requires consensus-layer upgrades.
 
 On any failure, exposure, reorganization, or observation ambiguity, execution halts and state is surfaced for explicit user or policy decision. No automatic retry, fee bumping, or public broadcast occurs.
 
@@ -1442,7 +1442,7 @@ A SEAL-compliant deployment MUST satisfy the following requirements.
 
 ### 12.3 Compatibility Notes
 
-SEAL operates entirely at the execution layer and requires no changes to Bitcoin consensus rules, Script semantics, mempool policy, or transaction validity.
+SEAL operates entirely at the execution layer and requires no changes to Bitcoin consensus rules (beyond those defined by BIP-360 where applicable), Script semantics, mempool policy, or transaction validity (beyond those defined by BIP-360).
 
 Transactions executed under SEAL are standard Bitcoin transactions. If private execution is explicitly abandoned, transactions may be broadcast publicly and processed under normal Bitcoin relay and confirmation semantics.
 
