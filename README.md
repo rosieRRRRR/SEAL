@@ -19,7 +19,7 @@ BIP-360 (Pay-to-Tapscript-Hash) secures outputs at rest by removing Taproot key-
 
 Under normal operation, SEAL does not broadcast transactions to the public mempool. If a transaction is decrypted and included but later orphaned or reorganized, the execution attempt is terminal and the spend is considered exposed. In such cases, the wallet transitions execution to a failure state, monitors the public mempool for conflicting transactions, and surfaces any observed double-spend attempts to the user or policy layer. Any recovery action, including fee-bumped replacement (RBF) or standard Bitcoin broadcast, is explicitly authorized and constitutes a new execution attempt.
 
-SEAL introduces no Bitcoin consensus changes (beyond those defined by BIP-360 where applicable), no Script semantics changes, and no transaction validity changes (beyond those defined by BIP-360). It does not define endpoint discovery, inclusion guarantees, or privacy beyond execution-window exposure reduction.
+SEAL introduces no changes to Bitcoin consensus rules, Script semantics, or transaction validity (beyond those defined by BIP-360 where applicable). It does not define endpoint discovery, inclusion guarantees, or privacy beyond execution-window exposure reduction.
 
 ---
 
